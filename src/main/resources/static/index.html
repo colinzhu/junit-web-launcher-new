@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JUnit Web Launcher</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container" x-data="testLauncher()">
+        <header>
+            <h1>JUnit Web Launcher</h1>
+            <nav>
+                <a href="index.html" class="active">Test Runner</a>
+                <a href="reports.html">Reports & Logs</a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Discovery Section -->
+            <section class="discovery-section">
+                <h2>Test Discovery</h2>
+                <div class="filter-controls">
+                    <label for="packageFilter">Package Filter:</label>
+                    <input 
+                        type="text" 
+                        id="packageFilter" 
+                        x-model="packageFilter" 
+                        placeholder="e.g., com.example.tests"
+                        @keyup.enter="discoverTests()">
+                    <button @click="discoverTests()" :disabled="discovering">
+                        <span x-show="!discovering">Discover Tests</span>
+                        <span x-show="discovering">Discovering...</span>
+                    </button>
+                </div>
+
+                <div x-show="discoveryError" class="error-message" x-text="discoveryError"></div>
+                
+                <div x-show="testTree && testTree.testClasses.length === 0" class="info-message">
+                    No tests found. Try adjusting the package filter or ensure tests are on the classpath.
+                </div>
+            </section>
+
+            <!-- Test Selection Section -->
+            <section class="test-selection-section" x-show="testTree && testTree.testClasses.length > 0">
+                <h2>Test Selection</h2>
+                <div class="test-tree">
+                    <template x-for="testClass in testTree.testClasses" :key="testClass.uniqueId">
+                        <div class="test-class">
+                            <div class="test-class-header">
+                                <input 
+                                    type="checkbox" 
+                                    :id="'class-' + testClass.uniqueId"
+                                    :checked="isClassSelected(testClass)"
+                                    @change="toggleClass(testClass)">
+                                <button 
+                                    class="expand-button"
+                                    @click="toggleExpand(testClass.uniqueId)"
+                                    :class="{ 'expanded': expandedClasses.includes(testClass.uniqueId) }">
+                                    ▶
+                                </button>
+                                <label 
+                                    :for="'class-' + testClass.uniqueId"
+                                    class="test-class-name">
+                                    <span x-text="testClass.displayName || testClass.simpleName"></span>
+                                    <span class="test-count" x-text="'(' + testClass.testMethods.length + ' tests)'"></span>
+                                </label>
+                            </div>
+                            
+                            <div 
+                                class="test-methods"
+                                x-show="expandedClasses.includes(testClass.uniqueId)">
+                                <template x-for="testMethod in testClass.testMethods" :key="testMethod.uniqueId">
+                                    <div class="test-method">
+                                        <input 
+                                            type="checkbox" 
+                                            :id="'method-' + testMethod.uniqueId"
+                                            :checked="selectedTests.includes(testMethod.uniqueId)"
+                                            @change="toggleTest(testMethod.uniqueId)">
+                                        <label 
+                                            :for="'method-' + testMethod.uniqueId"
+                                            x-text="testMethod.displayName || testMethod.methodName">
+                                        </label>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="action-controls">
+                    <button 
+                        class="run-button"
+                        @click="executeTests()" 
+                        :disabled="selectedTests.length === 0 || executing">
+                        <span x-show="!executing">Run Selected Tests (<span x-text="selectedTests.length"></span>)</span>
+                        <span x-show="executing">Running...</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Execution Section -->
+            <section class="execution-section" x-show="executionId">
+                <h2>Test Execution</h2>
+                
+                <div class="execution-status">
+                    <span>Status: </span>
+                    <span class="status-badge" :class="'status-' + executionStatus.toLowerCase()" x-text="executionStatus"></span>
+                    <button 
+                        x-show="executionStatus === 'RUNNING'"
+                        @click="cancelExecution()"
+                        class="cancel-button">
+                        Cancel Execution
+                    </button>
+                </div>
+
+                <div class="logs-container">
+                    <h3>Execution Logs</h3>
+                    <div class="logs-output" x-ref="logsOutput">
+                        <template x-for="(log, index) in logs" :key="index">
+                            <div class="log-entry" x-text="log"></div>
+                        </template>
+                    </div>
+                </div>
+
+                <div x-show="testResults.length > 0" class="test-results">
+                    <h3>Test Results</h3>
+                    <div class="results-summary">
+                        <span class="result-passed">Passed: <span x-text="countResults('PASSED')"></span></span>
+                        <span class="result-failed">Failed: <span x-text="countResults('FAILED')"></span></span>
+                        <span class="result-skipped">Skipped: <span x-text="countResults('SKIPPED')"></span></span>
+                    </div>
+                    <div class="results-list">
+                        <template x-for="result in testResults" :key="result.testId">
+                            <div class="result-item" :class="'result-' + result.status.toLowerCase()">
+                                <span class="result-icon" x-text="getResultIcon(result.status)"></span>
+                                <span class="result-name" x-text="result.testName"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div x-show="reportId" class="report-link">
+                    <h3>Report Generated</h3>
+                    <a :href="'/reports.html?reportId=' + reportId" target="_blank">View Allure Report</a>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

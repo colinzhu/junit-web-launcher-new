@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports & Logs - JUnit Web Launcher</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container" x-data="reportsAndLogs()">
+        <header>
+            <h1>JUnit Web Launcher</h1>
+            <nav>
+                <a href="index.html">Test Runner</a>
+                <a href="reports.html" class="active">Reports & Logs</a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Reports Section -->
+            <section class="reports-section">
+                <h2>Historical Reports</h2>
+                
+                <div class="filter-controls">
+                    <button @click="loadReports()" :disabled="loadingReports">
+                        <span x-show="!loadingReports">Refresh Reports</span>
+                        <span x-show="loadingReports">Loading...</span>
+                    </button>
+                </div>
+
+                <div x-show="reportsError" class="error-message" x-text="reportsError"></div>
+                
+                <div x-show="reports.length === 0 && !loadingReports" class="info-message">
+                    No reports found. Run some tests to generate reports.
+                </div>
+
+                <div x-show="reports.length > 0" class="reports-grid">
+                    <template x-for="report in reports" :key="report.reportId">
+                        <div class="report-card">
+                            <h4 x-text="'Report: ' + report.reportId"></h4>
+                            <div class="report-timestamp" x-text="formatTimestamp(report.timestamp)"></div>
+                            
+                            <div class="report-summary">
+                                <span class="result-passed">✓ <span x-text="report.passedTests"></span></span>
+                                <span class="result-failed">✗ <span x-text="report.failedTests"></span></span>
+                                <span class="result-skipped">⊘ <span x-text="report.skippedTests"></span></span>
+                            </div>
+                            
+                            <div class="report-actions">
+                                <button class="view-button" @click="viewReport(report.reportId)">
+                                    View Report
+                                </button>
+                                <button class="download-button" @click="downloadReport(report.reportId)">
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Report Viewer -->
+            <section class="report-viewer" x-show="viewingReportId">
+                <h2>Report Viewer</h2>
+                <button @click="closeReportViewer()">Close Viewer</button>
+                <iframe :src="'/api/reports/' + viewingReportId + '/index.html'" x-show="viewingReportId"></iframe>
+            </section>
+
+            <!-- Logs Section -->
+            <section class="logs-section">
+                <h2>Historical Logs</h2>
+                
+                <div class="filter-controls">
+                    <button @click="loadLogs()" :disabled="loadingLogs">
+                        <span x-show="!loadingLogs">Refresh Logs</span>
+                        <span x-show="loadingLogs">Loading...</span>
+                    </button>
+                </div>
+
+                <div x-show="logsError" class="error-message" x-text="logsError"></div>
+                
+                <div x-show="logs.length === 0 && !loadingLogs" class="info-message">
+                    No log files found. Run some tests to generate logs.
+                </div>
+
+                <div x-show="logs.length > 0" class="reports-grid">
+                    <template x-for="log in logs" :key="log.logId">
+                        <div class="log-card">
+                            <h4 x-text="'Log: ' + log.logId"></h4>
+                            <div class="log-timestamp" x-text="formatTimestamp(log.timestamp)"></div>
+                            <div class="log-size" x-text="formatFileSize(log.fileSizeBytes)"></div>
+                            
+                            <div class="log-actions">
+                                <button class="view-button" @click="viewLog(log.logId)">
+                                    View Log
+                                </button>
+                                <button class="download-button" @click="downloadLog(log.logId)">
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Log Viewer -->
+            <section class="log-viewer" x-show="viewingLogId">
+                <h2>Log Viewer</h2>
+                <button @click="closeLogViewer()">Close Viewer</button>
+                <div class="log-content" x-text="logContent"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/js/reports.js"></script>
+</body>
+</html>
