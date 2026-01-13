@@ -59,6 +59,11 @@ class ArchiveServiceImplTest {
             public ReportMetadata getReportMetadata(String reportId) {
                 return null;
             }
+            
+            @Override
+            public List<String> getFailedTests(String reportId) throws Exception {
+                return List.of();
+            }
         };
         
         archiveService = new ArchiveServiceImpl(storageProperties, mockReportService);

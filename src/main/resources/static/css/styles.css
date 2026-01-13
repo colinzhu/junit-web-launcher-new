@@ -499,3 +499,98 @@ input[type="checkbox"] {
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+/* Re-run button styles */
+.rerun-button {
+    background: #f39c12 !important;
+    color: white;
+}
+
+.rerun-button:hover:not(:disabled) {
+    background: #e67e22 !important;
+}
+
+.rerun-button:disabled {
+    background: #bdc3c7 !important;
+    cursor: not-allowed;
+}
+
+/* Re-run progress section */
+.rerun-progress {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rerun-progress h2 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.execution-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.execution-info p {
+    margin-bottom: 5px;
+}
+
+.log-output {
+    margin-bottom: 15px;
+}
+
+.log-output h3 {
+    margin-bottom: 10px;
+    color: #34495e;
+}
+
+.log-container {
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 15px;
+    border-radius: 6px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.log-entry {
+    margin-bottom: 2px;
+    word-wrap: break-word;
+}
+
+.rerun-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.combine-button {
+    background: #9b59b6 !important;
+    color: white;
+}
+
+.combine-button:hover:not(:disabled) {
+    background: #8e44ad !important;
+}
+
+/* Responsive adjustments for re-run functionality */
+@media (max-width: 768px) {
+    .rerun-actions {
+        flex-direction: column;
+    }
+    
+    .report-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .report-actions button {
+        flex: none;
+    }
+}

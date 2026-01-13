@@ -11,6 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -56,6 +57,9 @@ public class ReportServiceImpl implements ReportService {
         if (!Files.exists(resultsDir)) {
             throw new IllegalArgumentException("Results directory not found for execution: " + executionId);
         }
+        
+        // Copy history from previous report to current results directory
+        copyHistoryFromPreviousReport(resultsDir);
         
         // Create report directory with timestamp
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
@@ -124,6 +128,9 @@ public class ReportServiceImpl implements ReportService {
             }
         }
         
+        // Copy history from the most recent report among the selected reports
+        copyHistoryFromSelectedReports(reportIds, combinedResultsDir);
+        
         // Generate combined report
         String combinedReportId = "allure-report-combined-" + timestamp;
         Path combinedReportDir = Paths.get(storageProperties.getReportsPath(), combinedReportId);
@@ -147,6 +154,54 @@ public class ReportServiceImpl implements ReportService {
     public ReportMetadata getReportMetadata(String reportId) {
         Path reportDir = Paths.get(storageProperties.getReportsPath(), reportId);
         return loadMetadata(reportDir);
+    }
+    
+    @Override
+    public List<String> getFailedTests(String reportId) throws Exception {
+        logger.info("Extracting failed tests from report: {}", reportId);
+        
+        ReportMetadata metadata = getReportMetadata(reportId);
+        if (metadata == null) {
+            throw new IllegalArgumentException("Report not found: " + reportId);
+        }
+        
+        // Get the results directory for this execution
+        Path resultsDir = allureConfigurationService.getResultsDirectory(metadata.getExecutionId());
+        if (!Files.exists(resultsDir)) {
+            throw new IllegalArgumentException("Results directory not found for execution: " + metadata.getExecutionId());
+        }
+        
+        List<String> failedTestIds = new ArrayList<>();
+        
+        // Parse all result files to find failed tests
+        try (Stream<Path> files = Files.list(resultsDir)) {
+            List<Path> resultFiles = files
+                .filter(p -> p.getFileName().toString().endsWith("-result.json"))
+                .collect(Collectors.toList());
+            
+            for (Path resultFile : resultFiles) {
+                try {
+                    String content = Files.readString(resultFile);
+                    
+                    // Parse JSON to extract test information
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> testResult = objectMapper.readValue(content, Map.class);
+                    
+                    String status = (String) testResult.get("status");
+                    if ("failed".equals(status)) {
+                        String testCaseId = (String) testResult.get("testCaseId");
+                        if (testCaseId != null) {
+                            failedTestIds.add(testCaseId);
+                        }
+                    }
+                } catch (IOException e) {
+                    logger.warn("Failed to parse result file: {}", resultFile, e);
+                }
+            }
+        }
+        
+        logger.info("Found {} failed tests in report: {}", failedTestIds.size(), reportId);
+        return failedTestIds;
     }
     
     /**
@@ -297,6 +352,108 @@ public class ReportServiceImpl implements ReportService {
                     logger.warn("Failed to copy file: {}", source, e);
                 }
             });
+        }
+    }
+    
+    /**
+     * Copies history folder from the most recent report to the current results directory.
+     * This enables Allure trend charts and historical comparison features.
+     */
+    private void copyHistoryFromPreviousReport(Path currentResultsDir) {
+        try {
+            // Get the most recent report
+            List<ReportMetadata> reports = listReports();
+            if (reports.isEmpty()) {
+                logger.debug("No previous reports found, skipping history copy");
+                return;
+            }
+            
+            // Get the most recent report (reports are sorted by timestamp descending)
+            ReportMetadata mostRecentReport = reports.get(0);
+            Path mostRecentReportDir = Paths.get(storageProperties.getReportsPath(), mostRecentReport.getReportId());
+            Path historyDir = mostRecentReportDir.resolve("history");
+            
+            if (!Files.exists(historyDir)) {
+                logger.debug("No history folder found in most recent report: {}", mostRecentReport.getReportId());
+                return;
+            }
+            
+            // Copy history folder to current results directory
+            Path targetHistoryDir = currentResultsDir.resolve("history");
+            Files.createDirectories(targetHistoryDir);
+            
+            copyDirectoryRecursively(historyDir, targetHistoryDir);
+            
+            logger.info("Copied history from report {} to current results directory", mostRecentReport.getReportId());
+            
+        } catch (Exception e) {
+            // Don't fail report generation if history copy fails
+            logger.warn("Failed to copy history from previous report", e);
+        }
+    }
+    
+    /**
+     * Recursively copies a directory and all its contents.
+     */
+    private void copyDirectoryRecursively(Path source, Path target) throws IOException {
+        Files.walk(source)
+            .forEach(sourcePath -> {
+                try {
+                    Path targetPath = target.resolve(source.relativize(sourcePath));
+                    if (Files.isDirectory(sourcePath)) {
+                        Files.createDirectories(targetPath);
+                    } else {
+                        Files.copy(sourcePath, targetPath);
+                    }
+                } catch (IOException e) {
+                    logger.warn("Failed to copy path: {} to {}", sourcePath, target, e);
+                }
+            });
+    }
+    
+    /**
+     * Copies history folder from the most recent report among the selected reports.
+     */
+    private void copyHistoryFromSelectedReports(List<String> reportIds, Path combinedResultsDir) {
+        try {
+            // Find the most recent report among the selected ones
+            ReportMetadata mostRecentReport = null;
+            String mostRecentTimestamp = null;
+            
+            for (String reportId : reportIds) {
+                ReportMetadata metadata = getReportMetadata(reportId);
+                if (metadata != null) {
+                    if (mostRecentTimestamp == null || metadata.getTimestamp().compareTo(mostRecentTimestamp) > 0) {
+                        mostRecentReport = metadata;
+                        mostRecentTimestamp = metadata.getTimestamp();
+                    }
+                }
+            }
+            
+            if (mostRecentReport == null) {
+                logger.debug("No valid reports found among selected reports for history copy");
+                return;
+            }
+            
+            Path mostRecentReportDir = Paths.get(storageProperties.getReportsPath(), mostRecentReport.getReportId());
+            Path historyDir = mostRecentReportDir.resolve("history");
+            
+            if (!Files.exists(historyDir)) {
+                logger.debug("No history folder found in most recent selected report: {}", mostRecentReport.getReportId());
+                return;
+            }
+            
+            // Copy history folder to combined results directory
+            Path targetHistoryDir = combinedResultsDir.resolve("history");
+            Files.createDirectories(targetHistoryDir);
+            
+            copyDirectoryRecursively(historyDir, targetHistoryDir);
+            
+            logger.info("Copied history from report {} to combined results directory", mostRecentReport.getReportId());
+            
+        } catch (Exception e) {
+            // Don't fail report generation if history copy fails
+            logger.warn("Failed to copy history from selected reports", e);
         }
     }
 }

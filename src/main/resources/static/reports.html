@@ -54,6 +54,14 @@
                                 <button class="download-button" @click="downloadReport(report.reportId)">
                                     Download
                                 </button>
+                                <button 
+                                    class="rerun-button" 
+                                    @click="rerunFailedTests(report.reportId)"
+                                    x-show="report.failedTests > 0"
+                                    :disabled="rerunningReports[report.reportId]">
+                                    <span x-show="!rerunningReports[report.reportId]">Re-run Failed Tests</span>
+                                    <span x-show="rerunningReports[report.reportId]">Re-running...</span>
+                                </button>
                             </div>
                         </div>
                     </template>
@@ -65,6 +73,42 @@
                 <h2>Report Viewer</h2>
                 <button @click="closeReportViewer()">Close Viewer</button>
                 <iframe :src="'/api/reports/' + viewingReportId + '/index.html'" x-show="viewingReportId"></iframe>
+            </section>
+
+            <!-- Re-run Progress -->
+            <section class="rerun-progress" x-show="rerunExecutionId">
+                <h2>Re-run Progress</h2>
+                <div class="execution-info">
+                    <p>Re-running failed tests from report: <strong x-text="rerunSourceReportId"></strong></p>
+                    <p>Execution ID: <strong x-text="rerunExecutionId"></strong></p>
+                    <p>Status: <strong x-text="rerunStatus"></strong></p>
+                </div>
+                
+                <div class="log-output" x-show="rerunLogs.length > 0">
+                    <h3>Execution Logs</h3>
+                    <div class="log-container">
+                        <template x-for="log in rerunLogs" :key="log.timestamp">
+                            <div class="log-entry" x-text="log.message"></div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div class="rerun-actions" x-show="rerunStatus === 'COMPLETED'">
+                    <button class="view-button" @click="viewRerunReport()">
+                        View Re-run Report
+                    </button>
+                    <button class="combine-button" @click="combineWithOriginal()">
+                        Combine with Original Report
+                    </button>
+                </div>
+                
+                <div class="rerun-actions" x-show="rerunStatus === 'RUNNING'">
+                    <button class="cancel-button" @click="cancelRerun()">
+                        Cancel Re-run
+                    </button>
+                </div>
+                
+                <button @click="closeRerunProgress()">Close</button>
             </section>
 
             <!-- Logs Section -->

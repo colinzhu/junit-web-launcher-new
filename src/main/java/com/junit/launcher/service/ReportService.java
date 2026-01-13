@@ -41,4 +41,13 @@ public interface ReportService {
      * @return Report metadata or null if not found
      */
     ReportMetadata getReportMetadata(String reportId);
+    
+    /**
+     * Extracts unique IDs of failed tests from a report.
+     * 
+     * @param reportId The report identifier
+     * @return List of unique test IDs that failed in the report
+     * @throws Exception if report not found or parsing fails
+     */
+    List<String> getFailedTests(String reportId) throws Exception;
 }

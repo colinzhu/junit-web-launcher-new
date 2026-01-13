@@ -13,13 +13,16 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.junit.launcher.config.StorageProperties;
+import com.junit.launcher.model.ExecutionResponse;
 import com.junit.launcher.model.ReportMetadata;
 import com.junit.launcher.service.ArchiveService;
 import com.junit.launcher.service.ReportService;
+import com.junit.launcher.service.TestExecutionService;
 
 /**
  * REST controller for report operations.
@@ -31,13 +34,16 @@ public class ReportController {
     private final ReportService reportService;
     private final ArchiveService archiveService;
     private final StorageProperties storageProperties;
+    private final TestExecutionService testExecutionService;
     
     public ReportController(ReportService reportService,
                            ArchiveService archiveService,
-                           StorageProperties storageProperties) {
+                           StorageProperties storageProperties,
+                           TestExecutionService testExecutionService) {
         this.reportService = reportService;
         this.archiveService = archiveService;
         this.storageProperties = storageProperties;
+        this.testExecutionService = testExecutionService;
     }
     
     /**
@@ -133,6 +139,38 @@ public class ReportController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, 
                            "attachment; filename=\"" + archivePath.getFileName().toString() + "\"")
                     .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    
+    /**
+     * Re-runs failed tests from a specific report.
+     * 
+     * @param reportId The report identifier
+     * @return Execution response with new execution ID
+     */
+    @PostMapping("/{reportId}/rerun")
+    public ResponseEntity<ExecutionResponse> rerunFailedTests(@PathVariable String reportId) {
+        try {
+            // Extract failed tests from the report
+            List<String> failedTests = reportService.getFailedTests(reportId);
+            
+            if (failedTests.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+            
+            // Execute only the failed tests
+            String executionId = testExecutionService.executeTests(failedTests);
+            
+            ExecutionResponse response = new ExecutionResponse();
+            response.setExecutionId(executionId);
+            response.setStatus("RUNNING");
+            response.setTimestamp(java.time.LocalDateTime.now().toString());
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

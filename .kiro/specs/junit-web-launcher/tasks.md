@@ -286,21 +286,21 @@ This implementation plan breaks down the JUnit Web Launcher into incremental cod
     - **Property 28: Combined Report Naming Convention**
     - **Validates: Requirements 8.5**
 
-- [ ] 14. Implement failed test re-run feature (Optional)
-  - [ ] 14.1 Add failed test extraction to ReportService
+- [x] 14. Implement failed test re-run feature (Optional)
+  - [x] 14.1 Add failed test extraction to ReportService
     - Parse Allure results to identify failed tests
     - Extract unique IDs of failed tests
     - Implement getFailedTests() method
     - _Requirements: 9.2_
   
-  - [ ] 14.2 Add re-run endpoint
+  - [x] 14.2 Add re-run endpoint
     - Implement POST /api/rerun/{reportId}
     - Extract failed tests from original report
     - Execute only those tests
     - Generate new report for re-run
     - _Requirements: 9.2, 9.3_
   
-  - [ ] 14.3 Add UI for re-run with combination
+  - [x] 14.3 Add UI for re-run with combination
     - Add "Re-run Failed Tests" button on report view
     - Show re-run progress
     - Offer to combine re-run with original report
@@ -319,14 +319,14 @@ This implementation plan breaks down the JUnit Web Launcher into incremental cod
     - **Property 31: Combined Re-run Shows Updated Status**
     - **Validates: Requirements 9.5**
 
-- [ ] 15. Implement Allure history tracking
-  - [ ] 15.1 Add history folder management
+- [x] 15. Implement Allure history tracking
+  - [x] 15.1 Add history folder management
     - Before generating report, copy history folder from previous report to current allure-results
     - Preserve history folder from generated report for next run
     - Enable Allure trend charts and historical comparison
     - _Requirements: 6.2_
 
-- [ ] 16. Add error handling and validation
+- [-] 16. Add error handling and validation
   - [ ] 16.1 Add comprehensive error handling
     - Handle missing Allure CLI with clear error message
     - Handle invalid test IDs with 400 Bad Request
