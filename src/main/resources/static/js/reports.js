@@ -150,40 +150,55 @@ function reportsAndLogs() {
             
             this.rerunEventSource = new EventSource(`/api/stream/${this.rerunExecutionId}`);
             
-            this.rerunEventSource.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'log') {
-                        this.rerunLogs.push({
-                            timestamp: new Date().toISOString(),
-                            message: data.message
-                        });
-                        
-                        // Auto-scroll log container
-                        this.$nextTick(() => {
-                            const logContainer = document.querySelector('.rerun-progress .log-container');
-                            if (logContainer) {
-                                logContainer.scrollTop = logContainer.scrollHeight;
-                            }
-                        });
-                    } else if (data.type === 'status') {
-                        this.rerunStatus = data.status;
-                        
-                        if (data.status === 'COMPLETED') {
-                            // Generate report for the re-run
-                            this.generateRerunReport();
-                        }
+            // Listen for 'connected' event
+            this.rerunEventSource.addEventListener('connected', (event) => {
+                console.log('Re-run SSE connected:', event.data);
+            });
+            
+            // Listen for 'log' events
+            this.rerunEventSource.addEventListener('log', (event) => {
+                const message = event.data;
+                const lines = message.split('\n').filter(line => line.trim() !== '');
+                lines.forEach(line => {
+                    this.rerunLogs.push({
+                        timestamp: new Date().toISOString(),
+                        message: line
+                    });
+                });
+                
+                // Auto-scroll log container
+                this.$nextTick(() => {
+                    const logContainer = document.querySelector('.rerun-progress .log-container');
+                    if (logContainer) {
+                        logContainer.scrollTop = logContainer.scrollHeight;
                     }
-                } catch (error) {
-                    console.error('Error parsing SSE data:', error);
-                }
+                });
+            });
+            
+            // Fallback for default message events
+            this.rerunEventSource.onmessage = (event) => {
+                this.rerunLogs.push({
+                    timestamp: new Date().toISOString(),
+                    message: event.data
+                });
+                
+                // Auto-scroll log container
+                this.$nextTick(() => {
+                    const logContainer = document.querySelector('.rerun-progress .log-container');
+                    if (logContainer) {
+                        logContainer.scrollTop = logContainer.scrollHeight;
+                    }
+                });
             };
             
             this.rerunEventSource.onerror = (error) => {
                 console.error('SSE connection error:', error);
-                this.rerunEventSource.close();
-                this.rerunEventSource = null;
+                // Only close if it's a real error, not just end of stream
+                if (this.rerunEventSource && this.rerunEventSource.readyState === EventSource.CLOSED) {
+                    console.log('Re-run SSE connection closed by server');
+                    this.rerunEventSource.close();
+                    this.rerunEventSource = null;
+                }
             };
         },
         

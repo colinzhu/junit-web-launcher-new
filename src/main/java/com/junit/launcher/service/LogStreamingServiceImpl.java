@@ -59,6 +59,24 @@ public class LogStreamingServiceImpl implements LogStreamingService {
             logger.debug("SSE client error for execution: {}", executionId, ex);
         });
         
+        // Send initial connection event to confirm the connection is established
+        try {
+            emitter.send(SseEmitter.event()
+                .name("connected")
+                .data("Connected to log stream for execution: " + executionId));
+            
+            // Send any previously captured logs
+            StringBuilder existingLogs = capturedLogs.get(executionId);
+            if (existingLogs != null && existingLogs.length() > 0) {
+                emitter.send(SseEmitter.event()
+                    .name("log")
+                    .data(existingLogs.toString()));
+            }
+        } catch (IOException e) {
+            logger.debug("Failed to send initial event for execution: {}", executionId, e);
+            removeEmitter(executionId, emitter);
+        }
+        
         return emitter;
     }
     

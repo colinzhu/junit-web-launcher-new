@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.junit.launcher.config.StorageProperties;
 import com.junit.launcher.model.ExecutionStatus;
+import com.junit.launcher.model.ReportMetadata;
 
 /**
  * Unit tests for TestExecutionServiceImpl.
@@ -22,13 +23,44 @@ class TestExecutionServiceImplTest {
     private TestExecutionService executionService;
     private LogStreamingService logStreamingService;
     private AllureConfigurationService allureConfigurationService;
+    private ReportService reportService;
     
     @BeforeEach
     void setUp() {
         StorageProperties storageProperties = new StorageProperties();
         logStreamingService = new LogStreamingServiceImpl();
         allureConfigurationService = new AllureConfigurationService(storageProperties);
-        executionService = new TestExecutionServiceImpl(logStreamingService, allureConfigurationService);
+        // Create a mock report service that returns a dummy report
+        reportService = new ReportService() {
+            @Override
+            public ReportMetadata generateReport(String executionId) throws Exception {
+                ReportMetadata metadata = new ReportMetadata();
+                metadata.setReportId("test-report-" + executionId);
+                metadata.setExecutionId(executionId);
+                return metadata;
+            }
+            
+            @Override
+            public List<ReportMetadata> listReports() {
+                return List.of();
+            }
+            
+            @Override
+            public ReportMetadata combineReports(List<String> reportIds) throws Exception {
+                return null;
+            }
+            
+            @Override
+            public ReportMetadata getReportMetadata(String reportId) {
+                return null;
+            }
+            
+            @Override
+            public List<String> getFailedTests(String reportId) throws Exception {
+                return List.of();
+            }
+        };
+        executionService = new TestExecutionServiceImpl(logStreamingService, allureConfigurationService, reportService);
     }
     
     @Test

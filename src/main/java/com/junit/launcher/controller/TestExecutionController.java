@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -71,14 +72,9 @@ public class TestExecutionController {
      * @param executionId The execution ID to stream logs for
      * @return SseEmitter for streaming log messages
      */
-    @GetMapping("/stream/{executionId}")
-    public ResponseEntity<SseEmitter> streamLogs(@PathVariable String executionId) {
-        try {
-            SseEmitter emitter = logStreamingService.streamLogs(executionId);
-            return ResponseEntity.ok(emitter);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    @GetMapping(value = "/stream/{executionId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamLogs(@PathVariable String executionId) {
+        return logStreamingService.streamLogs(executionId);
     }
     
     /**
@@ -100,6 +96,12 @@ public class TestExecutionController {
                     status.name(),
                     timestamp
             );
+            
+            // Include report ID if available
+            String reportId = testExecutionService.getReportId(executionId);
+            if (reportId != null) {
+                response.setReportId(reportId);
+            }
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {

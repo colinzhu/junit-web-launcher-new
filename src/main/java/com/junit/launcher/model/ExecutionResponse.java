@@ -9,6 +9,7 @@ public class ExecutionResponse {
     private String executionId;
     private String status;
     private String timestamp;
+    private String reportId;
 
     public ExecutionResponse() {
     }
@@ -43,6 +44,14 @@ public class ExecutionResponse {
         this.timestamp = timestamp;
     }
 
+    public String getReportId() {
+        return reportId;
+    }
+
+    public void setReportId(String reportId) {
+        this.reportId = reportId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -50,12 +59,13 @@ public class ExecutionResponse {
         ExecutionResponse that = (ExecutionResponse) o;
         return Objects.equals(executionId, that.executionId) &&
                Objects.equals(status, that.status) &&
-               Objects.equals(timestamp, that.timestamp);
+               Objects.equals(timestamp, that.timestamp) &&
+               Objects.equals(reportId, that.reportId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(executionId, status, timestamp);
+        return Objects.hash(executionId, status, timestamp, reportId);
     }
 
     @Override
@@ -64,6 +74,7 @@ public class ExecutionResponse {
                "executionId='" + executionId + '\'' +
                ", status='" + status + '\'' +
                ", timestamp='" + timestamp + '\'' +
+               ", reportId='" + reportId + '\'' +
                '}';
     }
 }

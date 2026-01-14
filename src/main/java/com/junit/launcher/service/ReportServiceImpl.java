@@ -215,8 +215,7 @@ public class ReportServiceImpl implements ReportService {
             "generate",
             resultsDir.toAbsolutePath().toString(),
             "-o",
-            reportDir.toAbsolutePath().toString(),
-            "--clean"
+            reportDir.toAbsolutePath().toString()
         );
         
         processBuilder.redirectErrorStream(true);

@@ -147,8 +147,11 @@ function testLauncher() {
         
         streamLogs() {
             if (!this.executionId) {
+                console.error('No execution ID available for streaming');
                 return;
             }
+            
+            console.log('Starting log stream for execution:', this.executionId);
             
             // Close existing connection if any
             if (this.eventSource) {
@@ -156,9 +159,37 @@ function testLauncher() {
             }
             
             // Create new EventSource for SSE
-            this.eventSource = new EventSource(`/api/stream/${this.executionId}`);
+            const streamUrl = `/api/stream/${this.executionId}`;
+            console.log('Connecting to SSE endpoint:', streamUrl);
+            this.eventSource = new EventSource(streamUrl);
             
+            // Listen for 'connected' event
+            this.eventSource.addEventListener('connected', (event) => {
+                console.log('SSE connected:', event.data);
+            });
+            
+            // Listen for 'log' events (backend sends with name "log")
+            this.eventSource.addEventListener('log', (event) => {
+                console.log('Received log event:', event.data);
+                const data = event.data;
+                // Split by newlines and add each line separately
+                const lines = data.split('\n').filter(line => line.trim() !== '');
+                lines.forEach(line => {
+                    this.logs.push(line);
+                });
+                
+                // Auto-scroll to bottom
+                this.$nextTick(() => {
+                    const logsOutput = this.$refs.logsOutput;
+                    if (logsOutput) {
+                        logsOutput.scrollTop = logsOutput.scrollHeight;
+                    }
+                });
+            });
+            
+            // Also listen for default message events as fallback
             this.eventSource.onmessage = (event) => {
+                console.log('Received message event:', event.data);
                 const data = event.data;
                 this.logs.push(data);
                 
@@ -171,9 +202,16 @@ function testLauncher() {
                 });
             };
             
+            this.eventSource.onopen = () => {
+                console.log('SSE connection opened');
+            };
+            
             this.eventSource.onerror = (error) => {
                 console.error('SSE error:', error);
-                if (this.eventSource) {
+                console.error('SSE readyState:', this.eventSource?.readyState);
+                // Only close if it's a real error, not just end of stream
+                if (this.eventSource && this.eventSource.readyState === EventSource.CLOSED) {
+                    console.log('SSE connection closed by server');
                     this.eventSource.close();
                     this.eventSource = null;
                 }

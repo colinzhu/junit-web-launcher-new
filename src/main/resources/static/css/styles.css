@@ -297,14 +297,22 @@ input[type="checkbox"] {
     font-family: 'Courier New', monospace;
     font-size: 13px;
     max-height: 400px;
+    min-height: 100px;
     overflow-y: auto;
     line-height: 1.4;
+}
+
+.logs-output:empty::before {
+    content: 'Waiting for logs...';
+    color: #888;
+    font-style: italic;
 }
 
 .log-entry {
     margin-bottom: 2px;
     white-space: pre-wrap;
     word-break: break-word;
+    color: #d4d4d4;
 }
 
 /* Test Results */

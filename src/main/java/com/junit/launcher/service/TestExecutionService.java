@@ -31,4 +31,12 @@ public interface TestExecutionService {
      * @return Current execution status
      */
     ExecutionStatus getExecutionStatus(String executionId);
+    
+    /**
+     * Gets the report ID for a completed execution.
+     * 
+     * @param executionId The execution to check
+     * @return Report ID if available, null otherwise
+     */
+    String getReportId(String executionId);
 }

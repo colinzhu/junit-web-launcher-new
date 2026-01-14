@@ -118,6 +118,9 @@
                 <div class="logs-container">
                     <h3>Execution Logs</h3>
                     <div class="logs-output" x-ref="logsOutput">
+                        <template x-if="logs.length === 0">
+                            <div class="log-entry" style="color: #888; font-style: italic;">Waiting for logs...</div>
+                        </template>
                         <template x-for="(log, index) in logs" :key="index">
                             <div class="log-entry" x-text="log"></div>
                         </template>
