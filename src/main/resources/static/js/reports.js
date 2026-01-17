@@ -59,14 +59,8 @@ function reportsAndLogs() {
         },
         
         viewReport(reportId) {
-            this.viewingReportId = reportId;
-            // Scroll to viewer
-            this.$nextTick(() => {
-                const viewer = document.querySelector('.report-viewer');
-                if (viewer) {
-                    viewer.scrollIntoView({ behavior: 'smooth' });
-                }
-            });
+            // Open report in new tab
+            window.open(`/api/reports/${reportId}/index.html`, '_blank');
         },
         
         closeReportViewer() {

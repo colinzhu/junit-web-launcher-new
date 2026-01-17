@@ -4,19 +4,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * Configuration properties for Allure CLI.
+ * Configuration properties for Allure.
  */
 @Component
-@ConfigurationProperties(prefix = "allure.cli")
+@ConfigurationProperties(prefix = "allure")
 public class AllureProperties {
 
-    private String path = "allure";
-
     public String getPath() {
-        return path;
+        return "allure"; // Return default value directly since we're not using CLI
     }
 
     public void setPath(String path) {
-        this.path = path;
+        // No-op since we're not using CLI anymore
     }
 }

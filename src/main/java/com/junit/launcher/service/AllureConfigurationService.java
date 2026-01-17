@@ -31,7 +31,7 @@ public class AllureConfigurationService {
     /**
      * Configures Allure for a specific test execution.
      * Creates a dedicated results directory and sets up the Allure lifecycle.
-     * 
+     *
      * @param executionId The unique execution identifier
      * @return Path to the Allure results directory
      * @throws IOException if directory creation fails
@@ -40,27 +40,36 @@ public class AllureConfigurationService {
         // Create execution-specific results directory
         Path resultsDir = Paths.get(storageProperties.getAllureResultsPath(), executionId);
         Files.createDirectories(resultsDir);
-        
+
         logger.info("Created Allure results directory for execution {}: {}", executionId, resultsDir);
-        
-        // Set system property for Allure results directory
-        System.setProperty("allure.results.directory", resultsDir.toAbsolutePath().toString());
-        
-        // Get or create Allure lifecycle instance
+
+        // Set system property for Allure results directory BEFORE getting lifecycle
+        // This must be done before Allure.getLifecycle() is called anywhere
+        String resultsDirPath = resultsDir.toAbsolutePath().toString();
+        System.setProperty("allure.results.directory", resultsDirPath);
+
+        // Force re-initialization of Allure lifecycle with new results directory
+        // by clearing the cached lifecycle instance
+        Allure.setLifecycle(null);
+
+        // Get the lifecycle instance - it will now use the new results directory
         AllureLifecycle lifecycle = Allure.getLifecycle();
-        logger.debug("Allure lifecycle configured for execution: {}", executionId);
-        
+        logger.info("Allure lifecycle configured for execution {}: results directory = {}",
+                    executionId, resultsDirPath);
+
         return resultsDir;
     }
     
     /**
      * Cleans up Allure configuration after test execution.
-     * 
+     *
      * @param executionId The execution identifier
      */
     public void cleanupAllureConfiguration(String executionId) {
         // Clear the system property
         System.clearProperty("allure.results.directory");
+        // Reset the lifecycle to ensure clean state for next execution
+        Allure.setLifecycle(null);
         logger.debug("Cleaned up Allure configuration for execution: {}", executionId);
     }
     

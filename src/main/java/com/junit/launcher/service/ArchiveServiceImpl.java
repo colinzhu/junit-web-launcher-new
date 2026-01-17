@@ -38,40 +38,20 @@ public class ArchiveServiceImpl implements ArchiveService {
     
     private final StorageProperties storageProperties;
     private final ReportService reportService;
-    
+
     public ArchiveServiceImpl(StorageProperties storageProperties, ReportService reportService) {
         this.storageProperties = storageProperties;
         this.reportService = reportService;
     }
-    
-    @Override
-    public void archiveLogs(String executionId, String logs) throws Exception {
-        logger.info("Archiving logs for execution: {}", executionId);
-        
-        // Create logs directory if it doesn't exist
-        Path logsDir = Paths.get(storageProperties.getLogsPath());
-        Files.createDirectories(logsDir);
-        
-        // Create log file with timestamp-based naming (add UUID suffix to ensure uniqueness)
-        String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
-        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
-        String logFileName = LOG_FILE_PREFIX + timestamp + "_" + uniqueSuffix + LOG_FILE_EXTENSION;
-        Path logFile = logsDir.resolve(logFileName);
-        
-        // Write logs to file
-        Files.writeString(logFile, logs);
-        
-        logger.info("Logs archived successfully: {}", logFileName);
-    }
-    
+
     @Override
     public List<LogFileMetadata> listLogFiles() {
         Path logsPath = Paths.get(storageProperties.getLogsPath());
-        
+
         if (!Files.exists(logsPath)) {
             return new ArrayList<>();
         }
-        
+
         try (Stream<Path> paths = Files.list(logsPath)) {
             return paths
                 .filter(Files::isRegularFile)
@@ -85,25 +65,45 @@ public class ArchiveServiceImpl implements ArchiveService {
             return new ArrayList<>();
         }
     }
-    
+
+    @Override
+    public void archiveLogs(String executionId, String logs) throws Exception {
+        logger.info("Archiving logs for execution: {}", executionId);
+
+        // Create logs directory if it doesn't exist
+        Path logsDir = Paths.get(storageProperties.getLogsPath());
+        Files.createDirectories(logsDir);
+
+        // Create log file with timestamp-based naming (add UUID suffix to ensure uniqueness)
+        String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
+        String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8);
+        String logFileName = LOG_FILE_PREFIX + timestamp + "_" + uniqueSuffix + LOG_FILE_EXTENSION;
+        Path logFile = logsDir.resolve(logFileName);
+
+        // Write logs to file
+        Files.writeString(logFile, logs);
+
+        logger.info("Logs archived successfully: {}", logFileName);
+    }
+
     @Override
     public String getLogFile(String logFileId) throws Exception {
         Path logFile = Paths.get(storageProperties.getLogsPath(), logFileId);
-        
+
         if (!Files.exists(logFile)) {
             logger.warn("Log file not found: {}", logFileId);
             return null;
         }
-        
+
         return Files.readString(logFile);
     }
-    
+
     @Override
     public List<ReportMetadata> listReports() {
         // Delegate to ReportService which already implements this
         return reportService.listReports();
     }
-    
+
     @Override
     public Path createReportArchive(String reportId) throws Exception {
         logger.info("Creating archive for report: {}", reportId);

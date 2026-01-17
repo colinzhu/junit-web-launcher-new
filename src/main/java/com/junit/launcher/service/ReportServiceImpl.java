@@ -1,8 +1,6 @@
 package com.junit.launcher.service;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,6 +21,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.junit.launcher.config.AllureProperties;
 import com.junit.launcher.config.StorageProperties;
 import com.junit.launcher.model.ReportMetadata;
+
+import io.qameta.allure.ConfigurationBuilder;
+import io.qameta.allure.ReportGenerator;
+import io.qameta.allure.core.Configuration;
 
 /**
  * Implementation of ReportService for generating Allure reports.
@@ -67,7 +69,7 @@ public class ReportServiceImpl implements ReportService {
         Path reportDir = Paths.get(storageProperties.getReportsPath(), reportId);
         Files.createDirectories(reportDir);
         
-        // Execute Allure CLI to generate report
+        // Execute Allure report generation using Java API
         executeAllureGenerate(resultsDir, reportDir);
         
         // Parse test results to create metadata
@@ -205,50 +207,26 @@ public class ReportServiceImpl implements ReportService {
     }
     
     /**
-     * Executes Allure CLI to generate report.
+     * Executes Allure report generation using Java API.
+     * Uses the Allure ReportGenerator to generate reports programmatically.
      */
     private void executeAllureGenerate(Path resultsDir, Path reportDir) throws Exception {
-        String allureCommand = allureProperties.getPath();
-        
-        ProcessBuilder processBuilder = new ProcessBuilder(
-            allureCommand,
-            "generate",
-            resultsDir.toAbsolutePath().toString(),
-            "-o",
-            reportDir.toAbsolutePath().toString()
-        );
-        
-        processBuilder.redirectErrorStream(true);
-        
-        logger.debug("Executing Allure command: {}", String.join(" ", processBuilder.command()));
-        
+        logger.debug("Generating Allure report from {} to {}", resultsDir.toAbsolutePath(), reportDir.toAbsolutePath());
+
         try {
-            Process process = processBuilder.start();
+            // Create configuration for the report generator
+            Configuration configuration = new ConfigurationBuilder()
+                .useDefault().build();
             
-            // Capture output
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                    logger.debug("Allure: {}", line);
-                }
-            }
-            
-            int exitCode = process.waitFor();
-            
-            if (exitCode != 0) {
-                String errorMessage = "Allure report generation failed with exit code " + exitCode + 
-                                    ". Output: " + output.toString();
-                logger.error(errorMessage);
-                throw new RuntimeException(errorMessage);
-            }
+            // Create the report generator instance and generate the report
+            List<Path> resultsPaths = java.util.Collections.singletonList(resultsDir);
+            new ReportGenerator(configuration).generate(reportDir, resultsPaths);
             
             logger.info("Allure report generated successfully");
-            
-        } catch (IOException e) {
-            String errorMessage = "Failed to execute Allure CLI. Make sure Allure is installed and accessible. " +
-                                "Command: " + allureCommand;
+        } catch (Exception e) {
+            String errorMessage = "Allure report generation failed. " +
+                                "Results directory: " + resultsDir.toAbsolutePath() +
+                                ", Report directory: " + reportDir.toAbsolutePath();
             logger.error(errorMessage, e);
             throw new RuntimeException(errorMessage, e);
         }

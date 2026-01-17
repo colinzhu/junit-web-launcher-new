@@ -146,7 +146,7 @@
 
                 <div x-show="reportId" class="report-link">
                     <h3>Report Generated</h3>
-                    <a :href="'/reports.html?reportId=' + reportId" target="_blank">View Allure Report</a>
+                    <a :href="'/api/reports/' + reportId + '/index.html'" target="_blank">View Allure Report</a>
                 </div>
             </section>
         </main>

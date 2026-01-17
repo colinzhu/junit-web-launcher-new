@@ -1,14 +1,11 @@
 package com.junit.launcher.service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
+import com.junit.launcher.model.ExecutionStatus;
+import com.junit.launcher.model.ReportMetadata;
+import io.qameta.allure.Allure;
+import io.qameta.allure.model.Label;
+import io.qameta.allure.model.Status;
 import org.junit.platform.engine.TestExecutionResult;
-import static org.junit.platform.engine.discovery.DiscoverySelectors.selectUniqueId;
 import org.junit.platform.launcher.Launcher;
 import org.junit.platform.launcher.LauncherDiscoveryRequest;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -19,8 +16,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import com.junit.launcher.model.ExecutionStatus;
-import com.junit.launcher.model.ReportMetadata;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static org.junit.platform.engine.discovery.DiscoverySelectors.selectUniqueId;
 
 /**
  * Implementation of TestExecutionService for executing JUnit tests.
@@ -128,7 +129,7 @@ public class TestExecutionServiceImpl implements TestExecutionService {
             }
             LauncherDiscoveryRequest request = requestBuilder.build();
             
-            // Create launcher and register listener
+            // Create launcher and register listeners
             Launcher launcher = LauncherFactory.create();
             CustomTestExecutionListener listener = new CustomTestExecutionListener(executionId, context, logStreamingService);
             launcher.registerTestExecutionListeners(listener);
@@ -228,7 +229,7 @@ public class TestExecutionServiceImpl implements TestExecutionService {
     }
     
     /**
-     * Custom listener to capture test execution events.
+     * Custom listener to capture test execution events and record to Allure.
      */
     private static class CustomTestExecutionListener implements TestExecutionListener {
         private final String executionId;
@@ -255,6 +256,17 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                 // Also publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
                 logger.debug("Test started: {} [{}]", testIdentifier.getDisplayName(), executionId);
+                
+                // Record test start to Allure
+                String testCaseId = testIdentifier.getUniqueId();
+                Allure.getLifecycle().startTestCase(testCaseId);
+                Allure.getLifecycle().updateTestCase(testCaseId, result -> {
+                    result.setName(testIdentifier.getDisplayName());
+                    result.setFullName(testIdentifier.getDisplayName());
+                    // Add labels
+                    result.getLabels().add(new Label().setName("suite").setValue(testIdentifier.getSource().map(s -> s.toString()).orElse("Unknown")));
+                    result.getLabels().add(new Label().setName("testId").setValue(testCaseId));
+                });
             }
         }
         
@@ -270,6 +282,24 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                 logStreamingService.publishLog(executionId, message);
                 logger.debug("Test finished: {} - Status: {} [{}]", 
                     testIdentifier.getDisplayName(), status, executionId);
+                
+                // Record test finish to Allure
+                String testCaseId = testIdentifier.getUniqueId();
+                Allure.getLifecycle().updateTestCase(testCaseId, testResult -> {
+                    testResult.setStatus(convertToAllureStatus(testExecutionResult.getStatus()));
+                    
+                    // Handle failure details
+                    if (testExecutionResult.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.FAILED) {
+                        testExecutionResult.getThrowable().ifPresent(throwable -> {
+                            testResult.setStatusDetails(new io.qameta.allure.model.StatusDetails()
+                                .setMessage(throwable.getMessage())
+                                .setTrace(getStackTraceAsString(throwable)));
+                        });
+                    }
+                });
+                
+                Allure.getLifecycle().stopTestCase(testCaseId);
+                Allure.getLifecycle().writeTestCase(testCaseId);
             }
         }
         
@@ -284,7 +314,39 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                 logStreamingService.publishLog(executionId, message);
                 logger.debug("Test skipped: {} - Reason: {} [{}]", 
                     testIdentifier.getDisplayName(), reason, executionId);
+                
+                // Record test skipped to Allure
+                String testCaseId = testIdentifier.getUniqueId();
+                Allure.getLifecycle().startTestCase(testCaseId);
+                Allure.getLifecycle().updateTestCase(testCaseId, result -> {
+                    result.setName(testIdentifier.getDisplayName());
+                    result.setFullName(testIdentifier.getDisplayName());
+                    result.setStatus(Status.SKIPPED);
+                    result.setStatusDetails(new io.qameta.allure.model.StatusDetails().setMessage(reason));
+                });
+                Allure.getLifecycle().stopTestCase(testCaseId);
+                Allure.getLifecycle().writeTestCase(testCaseId);
             }
+        }
+        
+        private Status convertToAllureStatus(org.junit.platform.engine.TestExecutionResult.Status status) {
+            switch (status) {
+                case SUCCESSFUL:
+                    return Status.PASSED;
+                case FAILED:
+                    return Status.FAILED;
+                case ABORTED:
+                    return Status.BROKEN;
+                default:
+                    return Status.SKIPPED;
+            }
+        }
+        
+        private String getStackTraceAsString(Throwable throwable) {
+            java.io.StringWriter sw = new java.io.StringWriter();
+            java.io.PrintWriter pw = new java.io.PrintWriter(sw);
+            throwable.printStackTrace(pw);
+            return sw.toString();
         }
     }
 }
