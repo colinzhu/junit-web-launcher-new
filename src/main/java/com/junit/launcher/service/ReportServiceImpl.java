@@ -85,14 +85,20 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public List<ReportMetadata> listReports() {
         Path reportsPath = Paths.get(storageProperties.getReportsPath());
-        
+
         if (!Files.exists(reportsPath)) {
             return new ArrayList<>();
         }
-        
+
         try (Stream<Path> paths = Files.list(reportsPath)) {
             return paths
                 .filter(Files::isDirectory)
+                .filter(path -> {
+                    // Only process directories that look like report directories
+                    // (e.g., allure-report-2026-01-18_15-03-24)
+                    String dirName = path.getFileName().toString();
+                    return dirName.startsWith("allure-report-") && !dirName.contains("/");
+                })
                 .map(this::loadMetadata)
                 .filter(metadata -> metadata != null)
                 .sorted(Comparator.comparing(ReportMetadata::getTimestamp).reversed())

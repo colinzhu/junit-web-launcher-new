@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Spring Boot web application that provides a web-based interface for discovering, selecting, and executing JUnit 5 test cases with automatic Allure report generation. The application uses the JUnit Platform Launcher API to programmatically discover and run tests without requiring the Allure CLI.
 
+## Instructions for Agent
+- Make sure you understand the current OS
+- If current OS is Windows, use PowerShell commands instead of Linux commands
+
 ## Common Commands
 
 **Build the project:**
@@ -67,18 +71,18 @@ mvn test -Dtest=SampleTest
 ### Storage Structure
 
 ```
+./allure-report/      # Generated Allure reports (HTML)
+./allure-results/     # Raw Allure result JSON files per execution ID
 storage/
-├── reports/           # Generated Allure reports (HTML)
-├── logs/              # Execution logs
-└── allure-results/    # Raw Allure result JSON files per execution ID
+└── logs/             # Execution logs
 ```
 
 ### Allure Report Generation Flow
 
-1. Test execution writes result files to `storage/allure-results/{executionId}/`
+1. Test execution writes result files to `./allure-results/{executionId}/`
 2. `ReportServiceImpl.generateReport()` copies history from previous report
 3. `ReportGenerator` (from `allure-generator` dependency) generates HTML report
-4. Report stored in `storage/reports/{reportId}/` with `metadata.json`
+4. Report stored in `./allure-report/{reportId}/` with `metadata.json`
 
 ### Frontend
 

@@ -248,15 +248,15 @@ public class TestExecutionServiceImpl implements TestExecutionService {
             if (Thread.currentThread().isInterrupted() || context.getStatus() == ExecutionStatus.CANCELLED) {
                 throw new RuntimeException("Execution cancelled");
             }
-            
+
             if (testIdentifier.isTest()) {
                 String message = String.format("[TEST STARTED] %s%n", testIdentifier.getDisplayName());
                 System.out.print(message);
                 System.out.flush();
                 // Also publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
-                logger.debug("Test started: {} [{}]", testIdentifier.getDisplayName(), executionId);
-                
+                logger.debug("Test started: {} [{}]}", testIdentifier.getDisplayName(), executionId);
+
                 // Record test start to Allure
                 String testCaseId = testIdentifier.getUniqueId();
                 Allure.getLifecycle().startTestCase(testCaseId);
@@ -274,20 +274,20 @@ public class TestExecutionServiceImpl implements TestExecutionService {
         public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
             if (testIdentifier.isTest()) {
                 String status = testExecutionResult.getStatus().name();
-                String message = String.format("[TEST FINISHED] %s - Status: %s%n", 
+                String message = String.format("[TEST FINISHED] %s - Status: %s%n",
                     testIdentifier.getDisplayName(), status);
                 System.out.print(message);
                 System.out.flush();
                 // Also publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
-                logger.debug("Test finished: {} - Status: {} [{}]", 
+                logger.debug("Test finished: {} - Status: {} [{}]",
                     testIdentifier.getDisplayName(), status, executionId);
-                
+
                 // Record test finish to Allure
                 String testCaseId = testIdentifier.getUniqueId();
                 Allure.getLifecycle().updateTestCase(testCaseId, testResult -> {
                     testResult.setStatus(convertToAllureStatus(testExecutionResult.getStatus()));
-                    
+
                     // Handle failure details
                     if (testExecutionResult.getStatus() == org.junit.platform.engine.TestExecutionResult.Status.FAILED) {
                         testExecutionResult.getThrowable().ifPresent(throwable -> {
@@ -297,7 +297,7 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                         });
                     }
                 });
-                
+
                 Allure.getLifecycle().stopTestCase(testCaseId);
                 Allure.getLifecycle().writeTestCase(testCaseId);
             }
@@ -306,15 +306,15 @@ public class TestExecutionServiceImpl implements TestExecutionService {
         @Override
         public void executionSkipped(TestIdentifier testIdentifier, String reason) {
             if (testIdentifier.isTest()) {
-                String message = String.format("[TEST SKIPPED] %s - Reason: %s%n", 
+                String message = String.format("[TEST SKIPPED] %s - Reason: %s%n",
                     testIdentifier.getDisplayName(), reason);
                 System.out.print(message);
                 System.out.flush();
                 // Also publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
-                logger.debug("Test skipped: {} - Reason: {} [{}]", 
+                logger.debug("Test skipped: {} - Reason: {} [{}]",
                     testIdentifier.getDisplayName(), reason, executionId);
-                
+
                 // Record test skipped to Allure
                 String testCaseId = testIdentifier.getUniqueId();
                 Allure.getLifecycle().startTestCase(testCaseId);

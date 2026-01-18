@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "storage")
 public class StorageProperties {
 
-    private String reportsPath = "./storage/reports";
+    private String reportsPath = "./allure-report";
     private String logsPath = "./storage/logs";
-    private String allureResultsPath = "./storage/allure-results";
+    private String allureResultsPath = "./allure-results";
 
     public String getReportsPath() {
         return reportsPath;
