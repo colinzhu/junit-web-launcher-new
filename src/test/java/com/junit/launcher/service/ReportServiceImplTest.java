@@ -1,23 +1,19 @@
 package com.junit.launcher.service;
 
+import com.junit.launcher.config.AllureProperties;
+import com.junit.launcher.config.StorageProperties;
+import com.junit.launcher.model.ReportMetadata;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
-import com.junit.launcher.config.AllureProperties;
-import com.junit.launcher.config.StorageProperties;
-import com.junit.launcher.model.ReportMetadata;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for ReportServiceImpl.
@@ -97,7 +93,8 @@ class ReportServiceImplTest {
     void testGenerateReport_createsReportWithTimestampNaming() throws Exception {
         // Create a mock execution with results directory
         String executionId = "test-execution-123";
-        Path resultsDir = allureConfigurationService.configureAllureForExecution(executionId);
+        Path resultsDir = allureConfigurationService.getResultsDirectory(executionId);
+        Files.createDirectories(resultsDir);
         
         // Create a dummy result file to simulate test execution
         createDummyAllureResult(resultsDir, "passed");
@@ -127,7 +124,8 @@ class ReportServiceImplTest {
     void testGetFailedTests_returnsFailedTestIds() throws Exception {
         // Create a mock execution with results directory
         String executionId = "test-execution-failed";
-        Path resultsDir = allureConfigurationService.configureAllureForExecution(executionId);
+        Path resultsDir = allureConfigurationService.getResultsDirectory(executionId);
+        Files.createDirectories(resultsDir);
         
         // Create dummy result files with different statuses
         createDummyAllureResultWithTestCaseId(resultsDir, "passed", "test1", "TestClass.testMethod1");
@@ -171,7 +169,8 @@ class ReportServiceImplTest {
     void testHistoryFolderManagement_copiesHistoryFromPreviousReport() throws Exception {
         // Create first execution with results
         String firstExecutionId = "test-execution-1";
-        Path firstResultsDir = allureConfigurationService.configureAllureForExecution(firstExecutionId);
+        Path firstResultsDir = allureConfigurationService.getResultsDirectory(firstExecutionId);
+        Files.createDirectories(firstResultsDir);
         createDummyAllureResult(firstResultsDir, "passed");
         
         // Create first report directory with history folder
@@ -203,7 +202,8 @@ class ReportServiceImplTest {
         
         // Create second execution with results
         String secondExecutionId = "test-execution-2";
-        Path secondResultsDir = allureConfigurationService.configureAllureForExecution(secondExecutionId);
+        Path secondResultsDir = allureConfigurationService.getResultsDirectory(secondExecutionId);
+        Files.createDirectories(secondResultsDir);
         createDummyAllureResult(secondResultsDir, "failed");
         
         // Verify that history folder doesn't exist in second results directory initially
@@ -239,7 +239,8 @@ class ReportServiceImplTest {
     void testHistoryFolderManagement_handlesNoHistoryGracefully() throws Exception {
         // Create execution with results but no previous reports
         String executionId = "test-execution-no-history";
-        Path resultsDir = allureConfigurationService.configureAllureForExecution(executionId);
+        Path resultsDir = allureConfigurationService.getResultsDirectory(executionId);
+        Files.createDirectories(resultsDir);
         createDummyAllureResult(resultsDir, "passed");
         
         // Verify that history folder doesn't exist initially

@@ -1,23 +1,19 @@
 package com.junit.launcher.service;
 
+import com.junit.launcher.config.StorageProperties;
+import com.junit.launcher.model.LogFileMetadata;
+import com.junit.launcher.model.ReportMetadata;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
-import com.junit.launcher.config.StorageProperties;
-import com.junit.launcher.model.LogFileMetadata;
-import com.junit.launcher.model.ReportMetadata;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for ArchiveServiceImpl.

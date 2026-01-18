@@ -1,12 +1,8 @@
 package com.junit.launcher.service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
+import com.junit.launcher.model.TestClass;
+import com.junit.launcher.model.TestMethod;
+import com.junit.launcher.model.TestTree;
 import org.junit.platform.engine.TestSource;
 import org.junit.platform.engine.discovery.ClassNameFilter;
 import org.junit.platform.engine.discovery.DiscoverySelectors;
@@ -20,9 +16,12 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 import org.springframework.stereotype.Service;
 
-import com.junit.launcher.model.TestClass;
-import com.junit.launcher.model.TestMethod;
-import com.junit.launcher.model.TestTree;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Implementation of TestDiscoveryService using JUnit Platform Launcher API.

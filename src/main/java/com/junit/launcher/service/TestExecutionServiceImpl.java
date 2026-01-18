@@ -2,7 +2,7 @@ package com.junit.launcher.service;
 
 import com.junit.launcher.model.ExecutionStatus;
 import com.junit.launcher.model.ReportMetadata;
-import io.qameta.allure.Allure;
+import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.model.Label;
 import io.qameta.allure.model.Status;
 import org.junit.platform.engine.TestExecutionResult;
@@ -14,6 +14,9 @@ import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,13 +38,16 @@ public class TestExecutionServiceImpl implements TestExecutionService {
     private final LogStreamingService logStreamingService;
     private final AllureConfigurationService allureConfigurationService;
     private final ReportService reportService;
+    private final ThreadPoolTaskExecutor taskExecutor;
     
     public TestExecutionServiceImpl(LogStreamingService logStreamingService, 
                                    AllureConfigurationService allureConfigurationService,
-                                   ReportService reportService) {
+                                   ReportService reportService,
+                                   @Qualifier("testExecutionExecutor") ThreadPoolTaskExecutor taskExecutor) {
         this.logStreamingService = logStreamingService;
         this.allureConfigurationService = allureConfigurationService;
         this.reportService = reportService;
+        this.taskExecutor = taskExecutor;
     }
     
     @Override
@@ -59,11 +65,15 @@ public class TestExecutionServiceImpl implements TestExecutionService {
         ExecutionContext context = new ExecutionContext(executionId);
         activeExecutions.put(executionId, context);
         
-        // Start execution in background thread
-        Thread executionThread = new Thread(() -> runTests(executionId, selectedTests, context));
-        executionThread.setName("test-execution-" + executionId);
-        context.setExecutionThread(executionThread);
-        executionThread.start();
+        // Start execution in background task executor
+        taskExecutor.execute(() -> {
+            try {
+                MDC.put("executionId", executionId);
+                runTests(executionId, selectedTests, context);
+            } finally {
+                MDC.remove("executionId");
+            }
+        });
         
         return executionId;
     }
@@ -78,11 +88,6 @@ public class TestExecutionServiceImpl implements TestExecutionService {
         
         logger.info("Cancelling execution: {}", executionId);
         context.setStatus(ExecutionStatus.CANCELLED);
-        
-        Thread thread = context.getExecutionThread();
-        if (thread != null && thread.isAlive()) {
-            thread.interrupt();
-        }
     }
     
     @Override
@@ -107,6 +112,7 @@ public class TestExecutionServiceImpl implements TestExecutionService {
      * Runs the selected tests.
      */
     private void runTests(String executionId, List<String> selectedTests, ExecutionContext context) {
+        AllureLifecycle allureLifecycle = null;
         try {
             // Send initial log message
             logStreamingService.publishLog(executionId, "=== Test Execution Started ===\n");
@@ -115,12 +121,7 @@ public class TestExecutionServiceImpl implements TestExecutionService {
             logStreamingService.publishLog(executionId, "==============================\n");
             
             // Configure Allure for this execution
-            allureConfigurationService.configureAllureForExecution(executionId);
-            
-            // Redirect stdout/stderr to capture logs
-            if (logStreamingService instanceof LogStreamingServiceImpl) {
-                ((LogStreamingServiceImpl) logStreamingService).redirectStreams(executionId);
-            }
+            allureLifecycle = allureConfigurationService.createLifecycleForExecution(executionId);
             
             // Build discovery request with selected test IDs
             LauncherDiscoveryRequestBuilder requestBuilder = LauncherDiscoveryRequestBuilder.request();
@@ -131,7 +132,7 @@ public class TestExecutionServiceImpl implements TestExecutionService {
             
             // Create launcher and register listeners
             Launcher launcher = LauncherFactory.create();
-            CustomTestExecutionListener listener = new CustomTestExecutionListener(executionId, context, logStreamingService);
+            CustomTestExecutionListener listener = new CustomTestExecutionListener(executionId, context, logStreamingService, allureLifecycle);
             launcher.registerTestExecutionListeners(listener);
             
             // Execute tests
@@ -172,14 +173,6 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                 logStreamingService.publishLog(executionId, String.format("%n=== Execution Failed: %s ===%n", e.getMessage()));
             }
         } finally {
-            // Cleanup Allure configuration
-            allureConfigurationService.cleanupAllureConfiguration(executionId);
-            
-            // Restore original streams
-            if (logStreamingService instanceof LogStreamingServiceImpl) {
-                ((LogStreamingServiceImpl) logStreamingService).restoreStreams();
-            }
-            
             // Complete streaming
             logStreamingService.completeStreaming(executionId);
         }
@@ -191,7 +184,6 @@ public class TestExecutionServiceImpl implements TestExecutionService {
     private static class ExecutionContext {
         private final String executionId;
         private volatile ExecutionStatus status;
-        private Thread executionThread;
         private volatile String reportId;
         
         public ExecutionContext(String executionId) {
@@ -211,14 +203,6 @@ public class TestExecutionServiceImpl implements TestExecutionService {
             this.status = status;
         }
         
-        public Thread getExecutionThread() {
-            return executionThread;
-        }
-        
-        public void setExecutionThread(Thread executionThread) {
-            this.executionThread = executionThread;
-        }
-        
         public String getReportId() {
             return reportId;
         }
@@ -235,36 +219,36 @@ public class TestExecutionServiceImpl implements TestExecutionService {
         private final String executionId;
         private final ExecutionContext context;
         private final LogStreamingService logStreamingService;
+        private final AllureLifecycle allureLifecycle;
         
-        public CustomTestExecutionListener(String executionId, ExecutionContext context, LogStreamingService logStreamingService) {
+        public CustomTestExecutionListener(String executionId, ExecutionContext context, LogStreamingService logStreamingService, AllureLifecycle allureLifecycle) {
             this.executionId = executionId;
             this.context = context;
             this.logStreamingService = logStreamingService;
+            this.allureLifecycle = allureLifecycle;
         }
         
         @Override
         public void executionStarted(TestIdentifier testIdentifier) {
             // Check for cancellation
-            if (Thread.currentThread().isInterrupted() || context.getStatus() == ExecutionStatus.CANCELLED) {
-                throw new RuntimeException("Execution cancelled");
+            if (context.getStatus() == ExecutionStatus.CANCELLED) {
+                return;
             }
 
             if (testIdentifier.isTest()) {
                 String message = String.format("[TEST STARTED] %s%n", testIdentifier.getDisplayName());
-                System.out.print(message);
-                System.out.flush();
-                // Also publish directly to ensure it's sent
+                // Publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
                 logger.debug("Test started: {} [{}]}", testIdentifier.getDisplayName(), executionId);
 
                 // Record test start to Allure
                 String testCaseId = testIdentifier.getUniqueId();
-                Allure.getLifecycle().startTestCase(testCaseId);
-                Allure.getLifecycle().updateTestCase(testCaseId, result -> {
+                allureLifecycle.startTestCase(testCaseId);
+                allureLifecycle.updateTestCase(testCaseId, result -> {
                     result.setName(testIdentifier.getDisplayName());
                     result.setFullName(testIdentifier.getDisplayName());
                     // Add labels
-                    result.getLabels().add(new Label().setName("suite").setValue(testIdentifier.getSource().map(s -> s.toString()).orElse("Unknown")));
+                    result.getLabels().add(new Label().setName("suite").setValue(testIdentifier.getSource().map(Object::toString).orElse("Unknown")));
                     result.getLabels().add(new Label().setName("testId").setValue(testCaseId));
                 });
             }
@@ -276,16 +260,14 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                 String status = testExecutionResult.getStatus().name();
                 String message = String.format("[TEST FINISHED] %s - Status: %s%n",
                     testIdentifier.getDisplayName(), status);
-                System.out.print(message);
-                System.out.flush();
-                // Also publish directly to ensure it's sent
+                // Publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
                 logger.debug("Test finished: {} - Status: {} [{}]",
                     testIdentifier.getDisplayName(), status, executionId);
 
                 // Record test finish to Allure
                 String testCaseId = testIdentifier.getUniqueId();
-                Allure.getLifecycle().updateTestCase(testCaseId, testResult -> {
+                allureLifecycle.updateTestCase(testCaseId, testResult -> {
                     testResult.setStatus(convertToAllureStatus(testExecutionResult.getStatus()));
 
                     // Handle failure details
@@ -298,8 +280,8 @@ public class TestExecutionServiceImpl implements TestExecutionService {
                     }
                 });
 
-                Allure.getLifecycle().stopTestCase(testCaseId);
-                Allure.getLifecycle().writeTestCase(testCaseId);
+                allureLifecycle.stopTestCase(testCaseId);
+                allureLifecycle.writeTestCase(testCaseId);
             }
         }
         
@@ -308,24 +290,22 @@ public class TestExecutionServiceImpl implements TestExecutionService {
             if (testIdentifier.isTest()) {
                 String message = String.format("[TEST SKIPPED] %s - Reason: %s%n",
                     testIdentifier.getDisplayName(), reason);
-                System.out.print(message);
-                System.out.flush();
-                // Also publish directly to ensure it's sent
+                // Publish directly to ensure it's sent
                 logStreamingService.publishLog(executionId, message);
                 logger.debug("Test skipped: {} - Reason: {} [{}]",
                     testIdentifier.getDisplayName(), reason, executionId);
 
                 // Record test skipped to Allure
                 String testCaseId = testIdentifier.getUniqueId();
-                Allure.getLifecycle().startTestCase(testCaseId);
-                Allure.getLifecycle().updateTestCase(testCaseId, result -> {
+                allureLifecycle.startTestCase(testCaseId);
+                allureLifecycle.updateTestCase(testCaseId, result -> {
                     result.setName(testIdentifier.getDisplayName());
                     result.setFullName(testIdentifier.getDisplayName());
                     result.setStatus(Status.SKIPPED);
                     result.setStatusDetails(new io.qameta.allure.model.StatusDetails().setMessage(reason));
                 });
-                Allure.getLifecycle().stopTestCase(testCaseId);
-                Allure.getLifecycle().writeTestCase(testCaseId);
+                allureLifecycle.stopTestCase(testCaseId);
+                allureLifecycle.writeTestCase(testCaseId);
             }
         }
         

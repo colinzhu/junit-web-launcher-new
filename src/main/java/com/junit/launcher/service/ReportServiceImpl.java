@@ -1,5 +1,17 @@
 package com.junit.launcher.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.junit.launcher.config.AllureProperties;
+import com.junit.launcher.config.StorageProperties;
+import com.junit.launcher.model.ReportMetadata;
+import io.qameta.allure.ConfigurationBuilder;
+import io.qameta.allure.ReportGenerator;
+import io.qameta.allure.core.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,19 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.junit.launcher.config.AllureProperties;
-import com.junit.launcher.config.StorageProperties;
-import com.junit.launcher.model.ReportMetadata;
-
-import io.qameta.allure.ConfigurationBuilder;
-import io.qameta.allure.ReportGenerator;
-import io.qameta.allure.core.Configuration;
 
 /**
  * Implementation of ReportService for generating Allure reports.
@@ -267,12 +266,13 @@ public class ReportServiceImpl implements ReportService {
                 // Parse each result file to get status
                 for (Path resultFile : resultFiles) {
                     try {
-                        String content = Files.readString(resultFile);
-                        if (content.contains("\"status\":\"passed\"") || content.contains("\"status\" : \"passed\"")) {
+                        JsonNode root = objectMapper.readTree(resultFile.toFile());
+                        String status = root.path("status").asText();
+                        if ("passed".equals(status)) {
                             passedTests++;
-                        } else if (content.contains("\"status\":\"failed\"") || content.contains("\"status\" : \"failed\"")) {
+                        } else if ("failed".equals(status)) {
                             failedTests++;
-                        } else if (content.contains("\"status\":\"skipped\"") || content.contains("\"status\" : \"skipped\"")) {
+                        } else if ("skipped".equals(status)) {
                             skippedTests++;
                         }
                     } catch (IOException e) {

@@ -1,8 +1,8 @@
 package com.junit.launcher.service;
 
-import java.util.List;
-
 import com.junit.launcher.model.ReportMetadata;
+
+import java.util.List;
 
 /**
  * Service for generating and managing Allure test reports.

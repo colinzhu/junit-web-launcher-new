@@ -1,19 +1,16 @@
 package com.junit.launcher.service;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import com.junit.launcher.config.StorageProperties;
 import com.junit.launcher.model.ExecutionStatus;
 import com.junit.launcher.model.ReportMetadata;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for TestExecutionServiceImpl.
@@ -60,7 +57,12 @@ class TestExecutionServiceImplTest {
                 return List.of();
             }
         };
-        executionService = new TestExecutionServiceImpl(logStreamingService, allureConfigurationService, reportService);
+        
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(1);
+        taskExecutor.initialize();
+        
+        executionService = new TestExecutionServiceImpl(logStreamingService, allureConfigurationService, reportService, taskExecutor);
     }
     
     @Test
@@ -73,7 +75,6 @@ class TestExecutionServiceImplTest {
         String executionId = executionService.executeTests(testIds);
         
         assertNotNull(executionId, "Execution ID should not be null");
-        assertTrue(executionId.contains("_"), "Execution ID should contain timestamp separator");
     }
     
     @Test

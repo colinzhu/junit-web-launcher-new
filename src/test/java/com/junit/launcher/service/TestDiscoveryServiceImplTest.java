@@ -1,14 +1,12 @@
 package com.junit.launcher.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import com.junit.launcher.model.TestClass;
 import com.junit.launcher.model.TestMethod;
 import com.junit.launcher.model.TestTree;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for TestDiscoveryServiceImpl.

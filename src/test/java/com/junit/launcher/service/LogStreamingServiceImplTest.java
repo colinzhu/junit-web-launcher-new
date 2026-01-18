@@ -1,11 +1,10 @@
 package com.junit.launcher.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for LogStreamingServiceImpl.
@@ -76,42 +75,5 @@ class LogStreamingServiceImplTest {
         String capturedLogs = logStreamingService.getCapturedLogs("unknown-execution");
         
         assertEquals("", capturedLogs, "Should return empty string for unknown execution");
-    }
-    
-    @Test
-    void testCreateCapturingStream_capturesOutput() {
-        String executionId = "test-execution-5";
-        
-        java.io.PrintStream capturingStream = logStreamingService.createCapturingStream(
-            executionId, System.out);
-        
-        capturingStream.println("Test output");
-        capturingStream.flush();
-        
-        String capturedLogs = logStreamingService.getCapturedLogs(executionId);
-        assertTrue(capturedLogs.contains("Test output"), 
-            "Captured logs should contain the output");
-    }
-    
-    @Test
-    void testRedirectAndRestoreStreams() {
-        String executionId = "test-execution-6";
-        
-        java.io.PrintStream originalOut = System.out;
-        
-        logStreamingService.redirectStreams(executionId);
-        
-        // Print something
-        System.out.println("Redirected output");
-        
-        logStreamingService.restoreStreams();
-        
-        // Verify streams are restored
-        assertEquals(originalOut, System.out, "System.out should be restored");
-        
-        // Verify output was captured
-        String capturedLogs = logStreamingService.getCapturedLogs(executionId);
-        assertTrue(capturedLogs.contains("Redirected output"), 
-            "Captured logs should contain redirected output");
     }
 }

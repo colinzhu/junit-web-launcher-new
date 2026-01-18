@@ -1,5 +1,12 @@
 package com.junit.launcher.service;
 
+import com.junit.launcher.config.StorageProperties;
+import com.junit.launcher.model.LogFileMetadata;
+import com.junit.launcher.model.ReportMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -16,14 +23,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import com.junit.launcher.config.StorageProperties;
-import com.junit.launcher.model.LogFileMetadata;
-import com.junit.launcher.model.ReportMetadata;
 
 /**
  * Implementation of ArchiveService for managing logs and reports.
@@ -183,22 +182,23 @@ public class ArchiveServiceImpl implements ArchiveService {
      */
     private void zipDirectory(Path sourceDir, Path basePath, ZipOutputStream zos) throws IOException {
         try (Stream<Path> paths = Files.walk(sourceDir)) {
-            paths.filter(path -> !Files.isDirectory(path))
-                .forEach(path -> {
-                    try {
-                        // Get relative path for ZIP entry
-                        Path relativePath = basePath.relativize(path);
-                        String zipEntryName = relativePath.toString().replace("\\", "/");
-                        
-                        ZipEntry zipEntry = new ZipEntry(zipEntryName);
-                        zos.putNextEntry(zipEntry);
-                        
-                        Files.copy(path, zos);
-                        zos.closeEntry();
-                    } catch (IOException e) {
-                        logger.error("Failed to add file to ZIP: {}", path, e);
-                    }
-                });
+            List<Path> files = paths.filter(path -> !Files.isDirectory(path)).collect(Collectors.toList());
+            for (Path path : files) {
+                try {
+                    // Get relative path for ZIP entry
+                    Path relativePath = basePath.relativize(path);
+                    String zipEntryName = relativePath.toString().replace("\\", "/");
+                    
+                    ZipEntry zipEntry = new ZipEntry(zipEntryName);
+                    zos.putNextEntry(zipEntry);
+                    
+                    Files.copy(path, zos);
+                    zos.closeEntry();
+                } catch (IOException e) {
+                    logger.error("Failed to add file to ZIP: {}", path, e);
+                    throw e; // Fail fast if a file cannot be added
+                }
+            }
         }
     }
 }

@@ -1,17 +1,15 @@
 package com.junit.launcher.service;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Implementation of LogStreamingService for streaming test execution logs via SSE.
@@ -27,10 +25,6 @@ public class LogStreamingServiceImpl implements LogStreamingService {
     
     // Map of execution IDs to captured log content
     private final Map<String, StringBuilder> capturedLogs = new ConcurrentHashMap<>();
-    
-    // Store original streams
-    private final PrintStream originalOut = System.out;
-    private final PrintStream originalErr = System.err;
     
     @Override
     public SseEmitter streamLogs(String executionId) {
@@ -134,66 +128,5 @@ public class LogStreamingServiceImpl implements LogStreamingService {
                 emitters.remove(executionId);
             }
         }
-    }
-    
-    /**
-     * Creates a custom PrintStream that captures output and forwards to log streaming.
-     */
-    public PrintStream createCapturingStream(String executionId, PrintStream original) {
-        return new PrintStream(new OutputStream() {
-            private final StringBuilder lineBuffer = new StringBuilder();
-            
-            @Override
-            public void write(int b) throws IOException {
-                // Write to original stream
-                original.write(b);
-                
-                // Capture for streaming
-                char c = (char) b;
-                lineBuffer.append(c);
-                
-                // If newline, publish the line
-                if (c == '\n') {
-                    String line = lineBuffer.toString();
-                    publishLog(executionId, line);
-                    lineBuffer.setLength(0);
-                }
-            }
-            
-            @Override
-            public void flush() throws IOException {
-                original.flush();
-                
-                // Flush any remaining content
-                if (lineBuffer.length() > 0) {
-                    String line = lineBuffer.toString();
-                    publishLog(executionId, line);
-                    lineBuffer.setLength(0);
-                }
-            }
-        }, true);
-    }
-    
-    /**
-     * Redirects System.out and System.err to capture output.
-     */
-    public void redirectStreams(String executionId) {
-        PrintStream capturingOut = createCapturingStream(executionId, originalOut);
-        PrintStream capturingErr = createCapturingStream(executionId, originalErr);
-        
-        System.setOut(capturingOut);
-        System.setErr(capturingErr);
-        
-        logger.debug("Streams redirected for execution: {}", executionId);
-    }
-    
-    /**
-     * Restores original System.out and System.err.
-     */
-    public void restoreStreams() {
-        System.setOut(originalOut);
-        System.setErr(originalErr);
-        
-        logger.debug("Streams restored");
     }
 }

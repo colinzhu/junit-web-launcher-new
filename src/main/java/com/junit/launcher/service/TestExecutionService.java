@@ -1,8 +1,8 @@
 package com.junit.launcher.service;
 
-import java.util.List;
-
 import com.junit.launcher.model.ExecutionStatus;
+
+import java.util.List;
 
 /**
  * Service for executing JUnit tests.
